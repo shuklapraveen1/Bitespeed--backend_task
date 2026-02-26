@@ -1,26 +1,15 @@
 {
   "name": "bitespeed-backend",
   "version": "1.0.0",
-  "main": "index.js",
+  "engines": {
+    "node": "20.x"
+  },
   "scripts": {
-  "build": "tsc",
-  "start": "node dist/index.js",
-  "dev": "tsc && node dist/index.js",
-  "prisma:deploy": "prisma migrate deploy"
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsc && node dist/index.js",
+    "prisma:deploy": "npx prisma migrate deploy"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/shuklapraveen1/Bitespeed--backend_task.git"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
-  "bugs": {
-    "url": "https://github.com/shuklapraveen1/Bitespeed--backend_task/issues"
-  },
-  "homepage": "https://github.com/shuklapraveen1/Bitespeed--backend_task#readme",
-  "description": "",
   "dependencies": {
     "@prisma/client": "^5.22.0",
     "express": "^5.2.1",
