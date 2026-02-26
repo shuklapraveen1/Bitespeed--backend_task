@@ -3,9 +3,10 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "dev": "ts-node src/index.ts",
-    "build": "tsc",
-    "start": "node dist/index.js"
+  "build": "tsc",
+  "start": "node dist/index.js",
+  "dev": "tsc && node dist/index.js",
+  "prisma:deploy": "prisma migrate deploy"
   },
   "repository": {
     "type": "git",
@@ -22,7 +23,6 @@
   "description": "",
   "dependencies": {
     "@prisma/client": "^5.22.0",
-    "dotenv": "^17.3.1",
     "express": "^5.2.1",
     "prisma": "^5.22.0"
   },
