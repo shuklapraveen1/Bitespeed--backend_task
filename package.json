@@ -1,0 +1,33 @@
+{
+  "name": "bitespeed-backend",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+  "dev": "ts-node-dev src/index.ts",
+  "build": "tsc",
+  "start": "node dist/index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shuklapraveen1/Bitespeed--backend_task.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/shuklapraveen1/Bitespeed--backend_task/issues"
+  },
+  "homepage": "https://github.com/shuklapraveen1/Bitespeed--backend_task#readme",
+  "description": "",
+  "dependencies": {
+    "@prisma/client": "^7.4.1",
+    "express": "^5.2.1",
+    "prisma": "^7.4.1"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.9.3"
+  }
+}
