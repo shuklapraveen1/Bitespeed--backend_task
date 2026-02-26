@@ -1,5 +1,3 @@
-console.log("=== NEW SERVER VERSION RUNNING ===");
-
 import express from "express";
 import { PrismaClient } from "@prisma/client";
 
@@ -8,8 +6,10 @@ const prisma = new PrismaClient();
 
 app.use(express.json());
 
+const PORT = process.env.PORT || 3000;
+
 app.get("/", (req, res) => {
-  res.send("SERVER RUNNING CLEAN");
+  res.send("Bitespeed Identity Reconciliation Service Running 🚀");
 });
 
 app.post("/identify", async (req, res) => {
@@ -22,7 +22,7 @@ app.post("/identify", async (req, res) => {
       });
     }
 
-    // STEP 1: Find contacts matching email OR phone
+    // Find all contacts matching email OR phoneNumber
     const matchingContacts = await prisma.contact.findMany({
       where: {
         OR: [
@@ -33,9 +33,9 @@ app.post("/identify", async (req, res) => {
       orderBy: { createdAt: "asc" },
     });
 
-    // ======================
-    // CASE 1: No match found
-    // ======================
+    // ==========================
+    // CASE 1: No existing contact
+    // ==========================
     if (matchingContacts.length === 0) {
       const newContact = await prisma.contact.create({
         data: {
@@ -55,70 +55,91 @@ app.post("/identify", async (req, res) => {
       });
     }
 
-    // ======================
-    // CASE 2: Matches exist
-    // ======================
+    // ==========================
+    // CASE 2: Contacts exist → Reconciliation
+    // ==========================
 
-    // Find oldest primary
-    let primaryContact =
-      matchingContacts.find((c) => c.linkPrecedence === "primary") ||
-      matchingContacts[0];
+    // Collect all related IDs (transitive closure)
+    const relatedIds = new Set<number>();
 
-    // If oldest is secondary, fetch its actual primary
-    if (
-      primaryContact.linkPrecedence === "secondary" &&
-      primaryContact.linkedId
-    ) {
-      primaryContact = (await prisma.contact.findUnique({
-        where: { id: primaryContact.linkedId },
-      })) as any;
+    for (const contact of matchingContacts) {
+      relatedIds.add(contact.id);
+
+      if (contact.linkedId) {
+        relatedIds.add(contact.linkedId);
+      }
     }
 
-    // Fetch all contacts linked to this primary
-    const linkedContacts = await prisma.contact.findMany({
+    const relatedContacts = await prisma.contact.findMany({
       where: {
         OR: [
-          { id: primaryContact.id },
-          { linkedId: primaryContact.id },
+          { id: { in: Array.from(relatedIds) } },
+          { linkedId: { in: Array.from(relatedIds) } },
         ],
       },
       orderBy: { createdAt: "asc" },
     });
 
-    // DEBUG LOGS
-    console.log("linkedContacts:", linkedContacts);
-    console.log("incoming email:", email);
-    console.log("incoming phone:", phoneNumber);
+    // Oldest contact becomes the true primary
+    const truePrimary = relatedContacts[0];
 
-    const emailExists =
-      !!email && linkedContacts.some((c) => c.email === email);
+    // Convert other primaries to secondary
+    for (const contact of relatedContacts) {
+      if (
+        contact.id !== truePrimary.id &&
+        contact.linkPrecedence === "primary"
+      ) {
+        await prisma.contact.update({
+          where: { id: contact.id },
+          data: {
+            linkPrecedence: "secondary",
+            linkedId: truePrimary.id,
+          },
+        });
+      }
+    }
 
-    const phoneExists =
-      !!phoneNumber && linkedContacts.some((c) => c.phoneNumber === phoneNumber);
+    // Fetch updated contacts under true primary
+    const updatedContacts = await prisma.contact.findMany({
+      where: {
+        OR: [
+          { id: truePrimary.id },
+          { linkedId: truePrimary.id },
+        ],
+      },
+      orderBy: { createdAt: "asc" },
+    });
 
-    console.log("emailExists:", emailExists);
-    console.log("phoneExists:", phoneExists);
+    // Check if new information needs secondary creation
+    const emailExists = email
+      ? updatedContacts.some((c) => c.email === email)
+      : true;
 
-    // Create secondary if new info found
-    if (!emailExists || !phoneExists) {
-      console.log("Creating secondary contact...");
+    const phoneExists = phoneNumber
+      ? updatedContacts.some((c) => c.phoneNumber === phoneNumber)
+      : true;
 
+    const shouldCreateSecondary =
+    (email && !emailExists) ||
+    (phoneNumber && !phoneExists);
+
+    if (shouldCreateSecondary) {
       await prisma.contact.create({
         data: {
           email,
           phoneNumber,
           linkPrecedence: "secondary",
-          linkedId: primaryContact.id,
+          linkedId: truePrimary.id,
         },
       });
     }
 
-    // Fetch updated final contacts
+    // Final consolidated fetch
     const finalContacts = await prisma.contact.findMany({
       where: {
         OR: [
-          { id: primaryContact.id },
-          { linkedId: primaryContact.id },
+          { id: truePrimary.id },
+          { linkedId: truePrimary.id },
         ],
       },
       orderBy: { createdAt: "asc" },
@@ -138,7 +159,7 @@ app.post("/identify", async (req, res) => {
 
     return res.status(200).json({
       contact: {
-        primaryContatctId: primaryContact.id,
+        primaryContatctId: truePrimary.id,
         emails,
         phoneNumbers,
         secondaryContactIds,
@@ -146,12 +167,12 @@ app.post("/identify", async (req, res) => {
     });
   } catch (error) {
     console.error(error);
-    return res.status(500).json({
+    res.status(500).json({
       error: "Internal Server Error",
     });
   }
 });
 
-app.listen(3000, () => {
-  console.log("Server running on port 3000");
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
